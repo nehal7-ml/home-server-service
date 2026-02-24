@@ -33,10 +33,14 @@ services:
       - "81:80/tcp"
     environment:
       TZ: "UTC"
+      # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
+      FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_webserver_api_password: ${PIHOLE_PASS}
     volumes:
       - "./etc-pihole:/etc/pihole"
       - "./etc-dnsmasq.d:/etc/dnsmasq.d"
+    cap_add:
+      - NET_ADMIN
     restart: unless-stopped
 
   nginx:
