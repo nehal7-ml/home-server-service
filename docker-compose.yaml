@@ -1,4 +1,27 @@
 services:
+  # --- MONITORING ---
+  beszel:
+    image: "henrygd/beszel:latest"
+    container_name: beszel
+    restart: unless-stopped
+    ports:
+      - "8090:8090" # Dashboard: http://192.168.0.135:8090
+    volumes:
+      - ./beszel_data:/data
+
+  beszel-agent:
+    image: "henrygd/beszel-agent:latest"
+    container_name: beszel-agent
+    restart: unless-stopped
+    privileged: true # Required to see hardware stats
+    network_mode: host # Required to see host network traffic
+    environment:
+      PORT: 4567
+      KEY: "${BESZEL_KEY}" # Get this from the Beszel Web UI after first login
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # --- NETWORKING & APPS ---
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
@@ -7,12 +30,11 @@ services:
       - "53:53/udp"
       - "81:80/tcp"
     environment:
-      TZ: 'UTC'
-      # Loads from .env file
+      TZ: "UTC"
       FTLCONF_webserver_api_password: ${PIHOLE_PASS}
     volumes:
-      - './etc-pihole:/etc/pihole'
-      - './etc-dnsmasq.d:/etc/dnsmasq.d'
+      - "./etc-pihole:/etc/pihole"
+      - "./etc-dnsmasq.d:/etc/dnsmasq.d"
     restart: unless-stopped
 
   nginx:
@@ -21,7 +43,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - stirling-pdf
 
