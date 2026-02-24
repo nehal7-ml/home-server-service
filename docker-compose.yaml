@@ -1,21 +1,20 @@
 services:
-  # DNS Server (The "Phonebook")
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      - "81:80/tcp" # Pi-hole admin panel on port 81
+      - "81:80/tcp"
     environment:
-      TZ: "UTC"
-      WEBPASSWORD: "yourpassword" # Password for the web UI
+      TZ: 'UTC'
+      # Loads from .env file
+      FTLCONF_webserver_api_password: ${PIHOLE_PASS}
     volumes:
-      - "./etc-pihole:/etc/pihole"
-      - "./etc-dnsmasq.d:/etc/dnsmasq.d"
+      - './etc-pihole:/etc/pihole'
+      - './etc-dnsmasq.d:/etc/dnsmasq.d'
     restart: unless-stopped
 
-  # The Router (Nginx)
   nginx:
     image: nginx:alpine
     container_name: local-proxy
@@ -26,9 +25,10 @@ services:
     depends_on:
       - stirling-pdf
 
-  # The PDF App
   stirling-pdf:
     image: stirlingtools/stirling-pdf:latest
     container_name: stirling-pdf
     environment:
-      - MODE=BOTH
+      - DOCKER_ENABLE_SECURITY=false
+      - MODE=${STIRLING_MODE}
+    restart: unless-stopped
