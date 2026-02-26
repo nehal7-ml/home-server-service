@@ -1,39 +1,48 @@
+#---NETWORKING ---
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: "docker-home"
+
+# Define a reusable logging anchor to keep the file clean
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10k" # Roughly 100-200 lines
+      max-file: "2" # Keeps 1 current and 1 backup (approx 500 lines total)
+
 services:
   # --- MONITORING ---
-  beszel:
-    image: "henrygd/beszel:latest"
-    container_name: beszel
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
     restart: unless-stopped
-    ports:
-      - "8090:8090" # Dashboard: http://192.168.0.135:8090
-    volumes:
-      - ./beszel_data:/data
-
-  beszel-agent:
-    image: "henrygd/beszel-agent:latest"
-    container_name: beszel-agent
-    restart: unless-stopped
-    privileged: true # Required to see hardware stats
-    network_mode: host # Required to see host network traffic
+    pid: host
+    network_mode: host
+    privileged: true
+    <<: *default-logging
     environment:
-      PORT: 4567
-      KEY: "${BESZEL_KEY}" # Get this from the Beszel Web UI after first login
+      GLANCES_OPT: "-w -p 8090"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
+      - /etc/os-release:/etc/os-release:ro
+      - ./glances/glances.conf:/etc/glances/glances.conf:ro
   # --- NETWORKING & APPS ---
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
+    <<: *default-logging
     dns:
-      - 8.8.8.8
+      - 127.0.0.1
+      - 1.1.1.1
     ports:
       - "53:53/tcp"
       - "53:53/udp"
       - "81:80/tcp"
     environment:
       TZ: "UTC"
-      # If using Docker's default `bridge` network setting the dns listening mode should be set to 'ALL'
       FTLCONF_dns_listeningMode: "ALL"
       FTLCONF_webserver_api_password: ${PIHOLE_PASS}
     volumes:
@@ -46,17 +55,15 @@ services:
   nginx:
     image: nginx:alpine
     container_name: local-proxy
+    <<: *default-logging
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - stirling-pdf
-
-  stirling-pdf:
-    image: stirlingtools/stirling-pdf:latest
-    container_name: stirling-pdf
-    environment:
-      - DOCKER_ENABLE_SECURITY=false
-      - MODE=${STIRLING_MODE}
+  bentopdf:
+    image: ghcr.io/alam00000/bentopdf:latest
+    container_name: bentopdf
+    <<: *default-logging
     restart: unless-stopped
+    ports:
+      - "8080:8080" # Change 8082 to whatever port you want
